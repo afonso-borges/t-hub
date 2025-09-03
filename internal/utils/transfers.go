@@ -1,7 +1,11 @@
 package utils
 
 import (
+	"fmt"
 	"sort"
+	"strings"
+
+	"github.com/charmbracelet/lipgloss"
 )
 
 type PlayerTransfer struct {
@@ -132,4 +136,41 @@ func calculateDirectTransfers(playerTransfers []PlayerTransfer) []DirectTransfer
 		}
 	}
 	return transfers
+}
+
+func DisplayTransfers(split GoldSplit) {
+	var sb strings.Builder
+	kw := func(s string) string {
+		return lipgloss.NewStyle().Foreground(lipgloss.Color("111")).Render(s)
+		// return lipgloss.NewStyle().Foreground(lipgloss.Color("#00244C")).Render(s)
+	}
+
+	dkw := func(s string) string {
+		return lipgloss.NewStyle().Foreground(lipgloss.Color("#00244C")).Render(s)
+	}
+
+	// result screen
+	fmt.Fprintf(&sb, "\n%s\n\n", lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("111")).
+		Render("Loot split results:"))
+
+	// display transfers
+	for _, transfer := range split.DirectTransfers {
+		fmt.Fprintf(&sb, "%s %s %s %s\n",
+			kw(transfer.From),
+			dkw("to pay"),
+			kw(transfer.To),
+			kw(fmt.Sprintf("%d", transfer.Amount)))
+	}
+
+	fmt.Fprintf(&sb, "\n")
+	fmt.Fprintf(&sb, "%s %s\n",
+		dkw("total profit: "),
+		kw(fmt.Sprintf("%d gp", split.TotalBalance)))
+	fmt.Fprintf(&sb, "%s %s\n",
+		dkw("total for each player: "),
+		kw(fmt.Sprintf("%d gp", split.EqualShare)))
+
+	fmt.Println(sb.String())
 }

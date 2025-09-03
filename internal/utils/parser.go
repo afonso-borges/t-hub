@@ -258,8 +258,8 @@ func extractPlayerNames(input string) []string {
 		word := words[i]
 		// Skip numbers, colons, and known keywords
 		if strings.Contains(word, ":") || AnalyzersNumberRX.MatchString(word) ||
-		   strings.Contains(word, ",") || word == "Loot" || word == "Supplies" ||
-		   word == "Balance" || word == "Damage" || word == "Healing" {
+			strings.Contains(word, ",") || word == "Loot" || word == "Supplies" ||
+			word == "Balance" || word == "Damage" || word == "Healing" {
 			continue
 		}
 
@@ -310,14 +310,14 @@ func extractPlayerStat(playerSection, statName string) string {
 }
 
 func FilterRemainingPlayers(players []Player, playersToRemove []string) []Player {
-    var remainingPlayers []Player
+	var remainingPlayers []Player
 
-    for _, player := range players {
-        shouldRemove := slices.Contains(playersToRemove, player.Name)
-        if !shouldRemove {
-            remainingPlayers = append(remainingPlayers, player)
-        }
-    }
+	for _, player := range players {
+		shouldRemove := slices.Contains(playersToRemove, player.Name)
+		if !shouldRemove {
+			remainingPlayers = append(remainingPlayers, player)
+		}
+	}
 
-    return remainingPlayers
+	return remainingPlayers
 }
