@@ -2,7 +2,6 @@ package main
 
 import (
 	"log"
-	"os"
 
 	"github.com/afonso-borges/t-hub/internal/theme"
 	"github.com/afonso-borges/t-hub/internal/utils"
@@ -33,7 +32,7 @@ func main() {
 	// insert party hunt analyzer screen
 	analyzerForm := huh.NewForm(
 		huh.NewGroup(
-			huh.NewInput().
+			huh.NewText().
 				Title(`Paste here the party hunt analyzer`).
 				Description(`use ctrl+shift+v to paste in terminal`).
 				Value(&analyzer).WithTheme(theme.Theme()),
@@ -51,7 +50,6 @@ func main() {
 		log.Printf("Error parsing analyzer: %v", err)
 		log.Fatal("Failed to parse party hunt analyzer")
 	}
-
 
 	// player removal selection screen
 	playerOptions := utils.ExtractPlayerNames(players)
@@ -72,7 +70,6 @@ func main() {
 	}
 	remainingPlayers := utils.FilterRemainingPlayers(players, playersToRemove)
 	split := utils.CalculateGoldSplit(remainingPlayers)
-
 
 	utils.SaveToClipboard(split)
 	utils.DisplayTransfers(split)
