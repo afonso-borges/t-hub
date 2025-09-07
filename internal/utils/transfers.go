@@ -10,31 +10,31 @@ import (
 
 type PlayerTransfer struct {
 	Player
-	TransferAmount int    `json:"transfer_amount"` // Positive = owes gold, Negative = receives gold
-	FinalBalance   int    `json:"final_balance"`
-	Status         string `json:"status"` // "owes", "receives" or "balanced"
+	TransferAmount int
+	FinalBalance   int
+	Status         string
 }
 
 type DirectTransfer struct {
-	From   string `json:"from"`
-	To     string `json:"to"`
-	Amount int    `json:"amount"`
+	From   string
+	To     string
+	Amount int
 }
 
 type GoldSplit struct {
-	TotalBalance    int              `json:"total_balance"`
-	EqualShare      int              `json:"equal_share"`
-	PlayerTransfers []PlayerTransfer `json:"player_transfers"`
-	DirectTransfers []DirectTransfer `json:"direct_transfers"`
-	Summary         TransferSummary  `json:"summary"`
+	TotalBalance    int
+	EqualShare      int
+	PlayerTransfers []PlayerTransfer
+	DirectTransfers []DirectTransfer
+	Summary         TransferSummary
 }
 
 type TransferSummary struct {
-	TotalOwed        int `json:"total_owed"`
-	TotalReceived    int `json:"total_received"`
-	PlayersOwing     int `json:"players_owing"`
-	PlayersReceiving int `json:"players_receiving"`
-	TransferCount    int `json:"transfer_count"`
+	TotalOwed        int
+	TotalReceived    int
+	PlayersOwing     int
+	PlayersReceiving int
+	TransferCount    int
 }
 
 func CalculateGoldSplit(players []Player) GoldSplit {
@@ -138,18 +138,21 @@ func calculateDirectTransfers(playerTransfers []PlayerTransfer) []DirectTransfer
 }
 
 func DisplayTransfers(split GoldSplit) {
+	fmt.Print(FormatTransfers(split))
+}
+
+func FormatTransfers(split GoldSplit) string {
 	var sb strings.Builder
 	kw := func(s string) string {
 		return lipgloss.NewStyle().Foreground(lipgloss.Color("111")).Render(s)
-		// return lipgloss.NewStyle().Foreground(lipgloss.Color("#00244C")).Render(s)
 	}
 
 	dkw := func(s string) string {
 		return lipgloss.NewStyle().Foreground(lipgloss.Color("#00244C")).Render(s)
 	}
 
-	// result screen
-	fmt.Fprintf(&sb, "\n%s\n\n", lipgloss.NewStyle().
+	// result screen header
+	fmt.Fprintf(&sb, "%s\n\n", lipgloss.NewStyle().
 		Bold(true).
 		Foreground(lipgloss.Color("111")).
 		Render("Loot split results:"))
@@ -160,7 +163,7 @@ func DisplayTransfers(split GoldSplit) {
 			kw(transfer.From),
 			dkw("to pay"),
 			kw(transfer.To),
-			kw(fmt.Sprintf("%d", transfer.Amount)))
+			kw(fmt.Sprintf("%d gp", transfer.Amount)))
 	}
 
 	fmt.Fprintf(&sb, "\n")
@@ -171,5 +174,5 @@ func DisplayTransfers(split GoldSplit) {
 		dkw("total for each player: "),
 		kw(fmt.Sprintf("%d gp", split.EqualShare)))
 
-	fmt.Println(sb.String())
+	return sb.String()
 }

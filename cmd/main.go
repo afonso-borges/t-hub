@@ -1,96 +1,367 @@
 package main
 
 import (
+	"fmt"
 	"log"
+	"os"
+	"strings"
 	"time"
 
-	"github.com/afonso-borges/t-hub/internal/theme"
-	"github.com/afonso-borges/t-hub/internal/utils"
+	"github.com/charmbracelet/bubbles/spinner"
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/huh"
-	"github.com/charmbracelet/huh/spinner"
+	"github.com/charmbracelet/lipgloss"
+
+	"github.com/afonso-borges/t-hub/internal/utils"
 )
+
+const maxWidth = 80
 
 var (
-	playersToRemove []string
-	analyzer        string = ""
+	red    = lipgloss.AdaptiveColor{Light: "#FE5F86", Dark: "#FE5F86"}
+	indigo = lipgloss.AdaptiveColor{Light: "#7A34BB", Dark: "#7A34BB"}
+	green  = lipgloss.AdaptiveColor{Light: "#02BA84", Dark: "#02BF87"}
 )
 
-func main() {
-	// welcome screen
-	welcomeForm := huh.NewForm(
-		huh.NewGroup(huh.NewNote().
-			Title("Welcome to T-HUB").
-			Description("loot split in your terminal").
-			Next(true).
-			NextLabel("Next").WithTheme(theme.Theme()),
-		),
-	)
+type Styles struct {
+	Base,
+	HeaderText,
+	Status,
+	StatusHeader,
+	Highlight,
+	ErrorHeaderText,
+	Help lipgloss.Style
+}
 
-	err := welcomeForm.Run()
-	if err != nil {
-		log.Fatal(err)
+func NewStyles(lg *lipgloss.Renderer) *Styles {
+	s := Styles{}
+	s.Base = lg.NewStyle().
+		Padding(1, 4, 0, 1)
+	s.HeaderText = lg.NewStyle().
+		Foreground(indigo).
+		Bold(true).
+		Padding(0, 1, 0, 2)
+	s.Status = lg.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(indigo).
+		PaddingLeft(1).
+		MarginTop(1)
+	s.StatusHeader = lg.NewStyle().
+		Foreground(green).
+		Bold(true)
+	s.Highlight = lg.NewStyle().
+		Foreground(lipgloss.Color("212"))
+	s.ErrorHeaderText = s.HeaderText.
+		Foreground(red)
+	s.Help = lg.NewStyle().
+		Foreground(lipgloss.Color("240"))
+	return &s
+}
+
+type state int
+
+const (
+	stateWelcome state = iota
+	stateLoading
+	statePlayerRemoval
+	stateResults
+	stateStartOver
+	stateDone
+)
+
+type Model struct {
+	state           state
+	lg              *lipgloss.Renderer
+	styles          *Styles
+	form            *huh.Form
+	width           int
+	playersToRemove []string
+	analyzer        string
+	players         []utils.Player
+	split           utils.GoldSplit
+	loading         bool
+	spinner         spinner.Model
+}
+
+func NewModel() Model {
+	m := Model{
+		width: maxWidth,
+		state: stateWelcome,
 	}
+	m.lg = lipgloss.DefaultRenderer()
+	m.styles = NewStyles(m.lg)
 
-	loadAnalyzer := func() {
-		time.Sleep(1250 * time.Millisecond)
-	}
+	// Initialize spinner
+	s := spinner.New()
+	s.Spinner = spinner.Dot
+	s.Style = lipgloss.NewStyle().Foreground(indigo)
+	m.spinner = s
 
-	_ = spinner.New().
-		Title("Processing analyzer... ").
-		Action(loadAnalyzer).
-		Run()
+	m.createWelcomeForm()
+	return m
+}
 
-	analyzer, err := utils.CopyFromClipboard()
-	if err != nil {
-		log.Fatal(err)
-	}
-	// extract players from the input
-	_, players, err := utils.ParseAnalyzer(analyzer)
-	if err != nil {
-		log.Printf("Error parsing analyzer: %v", err)
-		log.Fatal("Failed to parse party hunt analyzer")
-	}
-
-	// player removal selection screen
-	playerOptions := utils.ExtractPlayerNames(players)
-
-	removalForm := huh.NewForm(
-		huh.NewGroup(
-			huh.NewMultiSelect[string]().
-				Title(`Remove player from loot split?`).
-				Description("Select players to exclude from the loot calculation").
-				Value(&playersToRemove).
-				Options(playerOptions...).WithTheme(theme.Theme()),
-		),
-	)
-
-	err = removalForm.Run()
-	if err != nil {
-		log.Fatal(err)
-	}
-	remainingPlayers := utils.FilterRemainingPlayers(players, playersToRemove)
-	split := utils.CalculateGoldSplit(remainingPlayers)
-
-	// transfer := utils.DisplayTransfers(split)
-	resultForm := huh.NewForm(
+func (m *Model) createWelcomeForm() {
+	m.form = huh.NewForm(
 		huh.NewGroup(
 			huh.NewNote().
-				Title("Results").
-				Description("Submit another analyzer?").
-				DescriptionFunc(func() string {
-					utils.DisplayTransfers(split)
-					return ""
-				}, split).
+				Title("Welcome to T-HUB").
+				Description("Loot split calculator for your terminal").
 				Next(true).
-				NextLabel("Copy to clipboard").WithTheme(theme.Theme()),
+				NextLabel("Start"),
 		),
-	)
+	).
+		WithWidth(50).
+		WithShowHelp(false).
+		WithShowErrors(false)
+}
 
-	err = resultForm.Run()
-	if err != nil {
-		log.Fatal(err)
+func (m *Model) createPlayerRemovalForm() {
+	if len(m.players) == 0 {
+		return
 	}
 
-	utils.SaveToClipboard(split)
+	playerOptions := utils.ExtractPlayerNames(m.players)
 
+	m.form = huh.NewForm(
+		huh.NewGroup(
+			huh.NewMultiSelect[string]().
+				Title("Remove players from loot split?").
+				Description("Select players to exclude from the calculation").
+				Value(&m.playersToRemove).
+				Options(playerOptions...),
+		),
+	).
+		WithWidth(50).
+		WithShowHelp(false).
+		WithShowErrors(false)
+}
+
+func (m *Model) createResultsForm() {
+	m.form = huh.NewForm(
+		huh.NewGroup(
+			huh.NewNote().
+				Description(utils.FormatTransfers(m.split)).
+				Next(true).
+				NextLabel("Copy to clipboard"),
+		),
+	).
+		WithWidth(50).
+		WithShowHelp(false).
+		WithShowErrors(false)
+}
+
+func (m *Model) createStartOverForm() {
+	m.form = huh.NewForm(
+		huh.NewGroup(
+			huh.NewConfirm().
+				Title("Start over?").
+				Description("Do you want to calculate another loot split?").
+				Affirmative("Yes").
+				Negative("No, exit"),
+		),
+	).
+		WithWidth(50).
+		WithShowHelp(false).
+		WithShowErrors(false)
+}
+
+func (m Model) Init() tea.Cmd {
+	return tea.Batch(m.form.Init(), m.spinner.Tick)
+}
+
+func min(x, y int) int {
+	if x > y {
+		return y
+	}
+	return x
+}
+
+type analyzerLoadedMsg struct {
+	analyzer string
+	players  []utils.Player
+	err      error
+}
+
+func loadAnalyzer() tea.Cmd {
+	return func() tea.Msg {
+		time.Sleep(1000 * time.Millisecond)
+
+		analyzer, err := utils.CopyFromClipboard()
+		if err != nil {
+			return analyzerLoadedMsg{err: err}
+		}
+
+		_, players, err := utils.ParseAnalyzer(analyzer)
+		if err != nil {
+			return analyzerLoadedMsg{err: err}
+		}
+
+		return analyzerLoadedMsg{
+			analyzer: analyzer,
+			players:  players,
+		}
+	}
+}
+
+func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		m.width = min(msg.Width, maxWidth) - m.styles.Base.GetHorizontalFrameSize()
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "ctrl+c":
+			return m, tea.Interrupt
+		case "esc", "q":
+			return m, tea.Quit
+		}
+	case spinner.TickMsg:
+		var cmd tea.Cmd
+		m.spinner, cmd = m.spinner.Update(msg)
+		return m, cmd
+	case analyzerLoadedMsg:
+		if msg.err != nil {
+			log.Fatal(msg.err)
+		}
+		m.analyzer = msg.analyzer
+		m.players = msg.players
+		m.state = statePlayerRemoval
+		m.loading = false
+		m.createPlayerRemovalForm()
+		return m, m.form.Init()
+	}
+
+	var cmds []tea.Cmd
+
+	// Process the form
+	form, cmd := m.form.Update(msg)
+	if f, ok := form.(*huh.Form); ok {
+		m.form = f
+		cmds = append(cmds, cmd)
+	}
+
+	if m.form.State == huh.StateCompleted {
+		switch m.state {
+		case stateWelcome:
+			m.state = stateLoading
+			m.loading = true
+			return m, loadAnalyzer()
+		case statePlayerRemoval:
+			remainingPlayers := utils.FilterRemainingPlayers(m.players, m.playersToRemove)
+			m.split = utils.CalculateGoldSplit(remainingPlayers)
+			m.state = stateResults
+			m.createResultsForm()
+			return m, m.form.Init()
+		case stateResults:
+			utils.SaveToClipboard(m.split)
+			m.state = stateStartOver
+			m.createStartOverForm()
+			return m, m.form.Init()
+		case stateStartOver:
+			if m.form.GetBool("") { // User confirmed "Yes"
+				// Reset state and start over
+				m.playersToRemove = []string{}
+				m.analyzer = ""
+				m.players = []utils.Player{}
+				m.split = utils.GoldSplit{}
+				m.state = stateLoading
+				m.loading = true
+				return m, loadAnalyzer()
+			} else {
+				return m, tea.Quit
+			}
+		}
+	}
+
+	return m, tea.Batch(cmds...)
+}
+
+func (m Model) View() string {
+	s := m.styles
+
+	if m.loading {
+		spinnerText := fmt.Sprintf("%s Processing analyzer...", m.spinner.View())
+		centeredLoading := s.Status.
+			Width(50).
+			Padding(2).
+			Render(spinnerText)
+
+		header := m.appBoundaryView("T-HUB - Loot Split Calculator")
+		body := lipgloss.Place(m.width, 10, lipgloss.Center, lipgloss.Center, centeredLoading)
+		footer := m.appBoundaryView("")
+
+		return s.Base.Render(header + "\n" + body + "\n\n" + footer)
+	}
+
+	// Form (centered)
+	v := strings.TrimSuffix(m.form.View(), "\n\n")
+	form := s.Status.
+		Width(60).
+		Padding(2).
+		Render(v)
+
+	// Center the form on screen
+	centeredForm := lipgloss.Place(m.width, 20, lipgloss.Center, lipgloss.Center, form)
+
+	errors := m.form.Errors()
+	var header string
+	switch m.state {
+	case stateWelcome:
+		header = m.appBoundaryView("T-HUB - Loot Split Calculator")
+	case statePlayerRemoval:
+		header = m.appBoundaryView("T-HUB - Player Selection")
+	case stateResults:
+		header = m.appBoundaryView("T-HUB - Results")
+	case stateStartOver:
+		header = m.appBoundaryView("T-HUB - Start Over")
+	default:
+		header = m.appBoundaryView("T-HUB - Loot Split Calculator")
+	}
+
+	if len(errors) > 0 {
+		header = m.appErrorBoundaryView(m.errorView())
+	}
+
+	footer := m.appBoundaryView(m.form.Help().ShortHelpView(m.form.KeyBinds()))
+	if len(errors) > 0 {
+		footer = m.appErrorBoundaryView("")
+	}
+
+	return s.Base.Render(header + "\n" + centeredForm + "\n\n" + footer)
+}
+
+func (m Model) errorView() string {
+	var s string
+	for _, err := range m.form.Errors() {
+		s += err.Error()
+	}
+	return s
+}
+
+func (m Model) appBoundaryView(text string) string {
+	return lipgloss.PlaceHorizontal(
+		m.width,
+		lipgloss.Left,
+		m.styles.HeaderText.Render(text),
+		lipgloss.WithWhitespaceChars("/"),
+		lipgloss.WithWhitespaceForeground(indigo),
+	)
+}
+
+func (m Model) appErrorBoundaryView(text string) string {
+	return lipgloss.PlaceHorizontal(
+		m.width,
+		lipgloss.Left,
+		m.styles.ErrorHeaderText.Render(text),
+		lipgloss.WithWhitespaceChars("/"),
+		lipgloss.WithWhitespaceForeground(red),
+	)
+}
+
+func main() {
+	_, err := tea.NewProgram(NewModel()).Run()
+	if err != nil {
+		fmt.Println("Oh no:", err)
+		os.Exit(1)
+	}
 }

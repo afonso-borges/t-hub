@@ -11,22 +11,22 @@ import (
 )
 
 type Party struct {
-	SessionData string `json:"session_data,omitempty"`
-	Session     string `json:"session,omitempty"`
-	LootType    string `json:"loot_type,omitempty"`
-	Loot        int    `json:"loot"`
-	Supplies    int    `json:"supplies"`
-	Balance     int    `json:"balance"`
+	SessionData string
+	Session     string
+	LootType    string
+	Loot        int
+	Supplies    int
+	Balance     int
 }
 
 type Player struct {
-	Name     string `json:"name"`
-	Leader   bool   `json:"leader"`
-	Loot     int    `json:"loot"`
-	Supplies int    `json:"supplies"`
-	Balance  int    `json:"balance"`
-	Damage   int    `json:"damage"`
-	Healing  int    `json:"healing"`
+	Name     string
+	Leader   bool
+	Loot     int
+	Supplies int
+	Balance  int
+	Damage   int
+	Healing  int
 }
 
 func parseNumber(s string) int {
