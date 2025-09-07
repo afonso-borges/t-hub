@@ -5,6 +5,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/afonso-borges/t-hub/internal/themes"
 	"github.com/charmbracelet/lipgloss"
 )
 
@@ -144,17 +145,17 @@ func DisplayTransfers(split GoldSplit) {
 func FormatTransfers(split GoldSplit) string {
 	var sb strings.Builder
 	kw := func(s string) string {
-		return lipgloss.NewStyle().Foreground(lipgloss.Color("111")).Render(s)
+		return lipgloss.NewStyle().Foreground(themes.Indigo).Render(s)
 	}
 
 	dkw := func(s string) string {
-		return lipgloss.NewStyle().Foreground(lipgloss.Color("#00244C")).Render(s)
+		return lipgloss.NewStyle().Foreground(themes.Fuchsia).Render(s)
 	}
 
 	// result screen header
 	fmt.Fprintf(&sb, "%s\n\n", lipgloss.NewStyle().
 		Bold(true).
-		Foreground(lipgloss.Color("111")).
+		Foreground(themes.Indigo).
 		Render("Loot split results:"))
 
 	// display transfers

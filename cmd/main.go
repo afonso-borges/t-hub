@@ -12,6 +12,7 @@ import (
 	"github.com/charmbracelet/huh"
 	"github.com/charmbracelet/lipgloss"
 
+	"github.com/afonso-borges/t-hub/internal/themes"
 	"github.com/afonso-borges/t-hub/internal/utils"
 )
 
@@ -75,6 +76,7 @@ type Model struct {
 	styles          *Styles
 	form            *huh.Form
 	width           int
+	height          int
 	playersToRemove []string
 	analyzer        string
 	players         []utils.Player
@@ -134,7 +136,8 @@ func (m *Model) createPlayerRemovalForm() {
 	).
 		WithWidth(50).
 		WithShowHelp(false).
-		WithShowErrors(false)
+		WithShowErrors(false).
+		WithTheme(themes.DefaultTheme())
 }
 
 func (m *Model) createResultsForm() {
@@ -208,6 +211,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width = min(msg.Width, maxWidth) - m.styles.Base.GetHorizontalFrameSize()
+		m.height = msg.Height
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "ctrl+c":
@@ -279,55 +283,75 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m Model) View() string {
 	s := m.styles
 
+	// Get header and footer content
+	var headerText string
+	var footerText string
+
+	if m.loading {
+		headerText = "T-HUB - Loot Split Calculator"
+		footerText = ""
+	} else {
+		errors := m.form.Errors()
+		if len(errors) > 0 {
+			headerText = m.errorView()
+			footerText = ""
+		} else {
+			switch m.state {
+			case stateWelcome:
+				headerText = "T-HUB - Loot Split Calculator"
+			case statePlayerRemoval:
+				headerText = "T-HUB - Player Selection"
+			case stateResults:
+				headerText = "T-HUB - Results"
+			case stateStartOver:
+				headerText = "T-HUB - Start Over"
+			default:
+				headerText = "T-HUB - Loot Split Calculator"
+			}
+			footerText = m.form.Help().ShortHelpView(m.form.KeyBinds())
+		}
+	}
+
+	// Create header and footer
+	var header, footer string
+	if len(m.form.Errors()) > 0 {
+		header = m.appErrorBoundaryView(headerText)
+		footer = m.appErrorBoundaryView(footerText)
+	} else {
+		header = m.appBoundaryView(headerText)
+		footer = m.appBoundaryView(footerText)
+	}
+
+	// Calculate available height for content (subtract header and footer lines)
+	headerHeight := lipgloss.Height(header)
+	footerHeight := lipgloss.Height(footer)
+	contentHeight := m.height - headerHeight - footerHeight
+
+	// Create main content
+	var content string
 	if m.loading {
 		spinnerText := fmt.Sprintf("%s Processing analyzer...", m.spinner.View())
 		centeredLoading := s.Status.
 			Width(50).
 			Padding(2).
 			Render(spinnerText)
-
-		header := m.appBoundaryView("T-HUB - Loot Split Calculator")
-		body := lipgloss.Place(m.width, 10, lipgloss.Center, lipgloss.Center, centeredLoading)
-		footer := m.appBoundaryView("")
-
-		return s.Base.Render(header + "\n" + body + "\n\n" + footer)
+		content = lipgloss.Place(m.width, contentHeight, lipgloss.Center, lipgloss.Center, centeredLoading)
+	} else {
+		// Form (centered)
+		v := strings.TrimSuffix(m.form.View(), "\n\n")
+		form := s.Status.
+			Width(60).
+			Padding(2).
+			Render(v)
+		content = lipgloss.Place(m.width, contentHeight, lipgloss.Center, lipgloss.Center, form)
 	}
 
-	// Form (centered)
-	v := strings.TrimSuffix(m.form.View(), "\n\n")
-	form := s.Status.
-		Width(60).
-		Padding(2).
-		Render(v)
-
-	// Center the form on screen
-	centeredForm := lipgloss.Place(m.width, 20, lipgloss.Center, lipgloss.Center, form)
-
-	errors := m.form.Errors()
-	var header string
-	switch m.state {
-	case stateWelcome:
-		header = m.appBoundaryView("T-HUB - Loot Split Calculator")
-	case statePlayerRemoval:
-		header = m.appBoundaryView("T-HUB - Player Selection")
-	case stateResults:
-		header = m.appBoundaryView("T-HUB - Results")
-	case stateStartOver:
-		header = m.appBoundaryView("T-HUB - Start Over")
-	default:
-		header = m.appBoundaryView("T-HUB - Loot Split Calculator")
-	}
-
-	if len(errors) > 0 {
-		header = m.appErrorBoundaryView(m.errorView())
-	}
-
-	footer := m.appBoundaryView(m.form.Help().ShortHelpView(m.form.KeyBinds()))
-	if len(errors) > 0 {
-		footer = m.appErrorBoundaryView("")
-	}
-
-	return s.Base.Render(header + "\n" + centeredForm + "\n\n" + footer)
+	// Combine all parts with proper spacing
+	return lipgloss.JoinVertical(lipgloss.Left,
+		header,
+		content,
+		footer,
+	)
 }
 
 func (m Model) errorView() string {
