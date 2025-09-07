@@ -2,10 +2,12 @@ package main
 
 import (
 	"log"
+	"time"
 
 	"github.com/afonso-borges/t-hub/internal/theme"
 	"github.com/afonso-borges/t-hub/internal/utils"
 	"github.com/charmbracelet/huh"
+	"github.com/charmbracelet/huh/spinner"
 )
 
 var (
@@ -29,21 +31,19 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// insert party hunt analyzer screen
-	analyzerForm := huh.NewForm(
-		huh.NewGroup(
-			huh.NewText().
-				Title(`Paste here the party hunt analyzer`).
-				Description(`use ctrl+shift+v to paste in terminal`).
-				Value(&analyzer).WithTheme(theme.Theme()),
-		),
-	)
+	loadAnalyzer := func() {
+		time.Sleep(1250 * time.Millisecond)
+	}
 
-	err = analyzerForm.Run()
+	_ = spinner.New().
+		Title("Processing analyzer... ").
+		Action(loadAnalyzer).
+		Run()
+
+	analyzer, err := utils.CopyFromClipboard()
 	if err != nil {
 		log.Fatal(err)
 	}
-
 	// extract players from the input
 	_, players, err := utils.ParseAnalyzer(analyzer)
 	if err != nil {
@@ -71,6 +71,26 @@ func main() {
 	remainingPlayers := utils.FilterRemainingPlayers(players, playersToRemove)
 	split := utils.CalculateGoldSplit(remainingPlayers)
 
+	// transfer := utils.DisplayTransfers(split)
+	resultForm := huh.NewForm(
+		huh.NewGroup(
+			huh.NewNote().
+				Title("Results").
+				Description("Submit another analyzer?").
+				DescriptionFunc(func() string {
+					utils.DisplayTransfers(split)
+					return ""
+				}, split).
+				Next(true).
+				NextLabel("Copy to clipboard").WithTheme(theme.Theme()),
+		),
+	)
+
+	err = resultForm.Run()
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	utils.SaveToClipboard(split)
-	utils.DisplayTransfers(split)
+
 }

@@ -37,12 +37,11 @@ type TransferSummary struct {
 	TransferCount    int `json:"transfer_count"`
 }
 
-
 func CalculateGoldSplit(players []Player) GoldSplit {
 	var totalBalance int
-    for _, player := range players {
-        totalBalance += player.Balance
-    }
+	for _, player := range players {
+		totalBalance += player.Balance
+	}
 	playerCount := len(players)
 	equalShare := totalBalance / playerCount
 
