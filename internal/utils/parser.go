@@ -223,3 +223,18 @@ func FilterRemainingPlayers(players []Player, playersToRemove []string) []Player
 
 	return remainingPlayers
 }
+
+// FormatNumber receives a number and transform it into "k" abreviation
+func FormatNumber(i int) string {
+	switch {
+	case i >= 1000000:
+		val := float64(i) / 1000000
+		return fmt.Sprintf("%.2f kk", val)
+
+	case i >= 1000:
+		val := float64(i) / 1000
+		return fmt.Sprintf("%.2f k", val)
+	default:
+		return fmt.Sprintf("%d", i)
+	}
+}

@@ -108,7 +108,7 @@ func (m *Model) createWelcomeForm() {
 		huh.NewGroup(
 			huh.NewNote().
 				Title("Welcome to T-HUB").
-				Description("Loot split calculator for your terminal").
+				Description("Make sure you have Party Hunt analyzer on your clipboard").
 				Next(true).
 				NextLabel("Start"),
 		),
@@ -123,16 +123,18 @@ func (m *Model) createPlayerRemovalForm() {
 		return
 	}
 
+	m.playersToRemove = []string{}
+
 	playerOptions := utils.ExtractPlayerNames(m.players)
 
+	multiSelect := huh.NewMultiSelect[string]().
+		Title("Remove players from loot split?").
+		Description("Select players to exclude from the calculation").
+		Value(&m.playersToRemove).
+		Options(playerOptions...)
+
 	m.form = huh.NewForm(
-		huh.NewGroup(
-			huh.NewMultiSelect[string]().
-				Title("Remove players from loot split?").
-				Description("Select players to exclude from the calculation").
-				Value(&m.playersToRemove).
-				Options(playerOptions...),
-		),
+		huh.NewGroup(multiSelect),
 	).
 		WithWidth(50).
 		WithShowHelp(false).
@@ -251,6 +253,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.loading = true
 			return m, loadAnalyzer()
 		case statePlayerRemoval:
+			if multiSelectField := m.form.Get(""); multiSelectField != nil {
+				if values, ok := multiSelectField.([]string); ok {
+					m.playersToRemove = values
+				}
+			}
+
 			remainingPlayers := utils.FilterRemainingPlayers(m.players, m.playersToRemove)
 			m.split = utils.CalculateGoldSplit(remainingPlayers)
 			m.state = stateResults
@@ -262,8 +270,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.createStartOverForm()
 			return m, m.form.Init()
 		case stateStartOver:
-			if m.form.GetBool("") { // User confirmed "Yes"
-				// Reset state and start over
+			if m.form.GetBool("") {
 				m.playersToRemove = []string{}
 				m.analyzer = ""
 				m.players = []utils.Player{}
@@ -300,7 +307,7 @@ func (m Model) View() string {
 			case stateWelcome:
 				headerText = "T-HUB - Loot Split Calculator"
 			case statePlayerRemoval:
-				headerText = "T-HUB - Player Selection"
+				headerText = "T-HUB - Player Removal"
 			case stateResults:
 				headerText = "T-HUB - Results"
 			case stateStartOver:
@@ -346,7 +353,6 @@ func (m Model) View() string {
 		content = lipgloss.Place(m.width, contentHeight, lipgloss.Center, lipgloss.Center, form)
 	}
 
-	// Combine all parts with proper spacing
 	return lipgloss.JoinVertical(lipgloss.Left,
 		header,
 		content,

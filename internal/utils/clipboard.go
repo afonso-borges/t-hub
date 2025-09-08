@@ -13,12 +13,12 @@ func formatFromClipboard(split GoldSplit) string {
 	sb.WriteString("=== LOOT SPLIT RESULTS ===\n\n")
 
 	for _, transfer := range split.DirectTransfers {
-		fmt.Fprintf(&sb, "%s to pay %s %d gp   |   bank: transfer %d to %s\n\n",
-			transfer.From, transfer.To, transfer.Amount, transfer.Amount, transfer.To)
+		fmt.Fprintf(&sb, "%s to pay %s %s   |   bank: transfer %d to %s\n\n",
+			transfer.From, transfer.To, FormatNumber(transfer.Amount), transfer.Amount, transfer.To)
 	}
 
-	fmt.Fprintf(&sb, "\ntotal profit: %d gp\n", split.TotalBalance)
-	fmt.Fprintf(&sb, "total for each player: %d gp\n", split.EqualShare)
+	fmt.Fprintf(&sb, "\ntotal profit: %s \n", FormatNumber(split.TotalBalance))
+	fmt.Fprintf(&sb, "total for each player: %s \n", FormatNumber(split.EqualShare))
 
 	return sb.String()
 }

@@ -158,6 +158,8 @@ func FormatTransfers(split GoldSplit) string {
 		Foreground(themes.Indigo).
 		Render("Loot split results:"))
 
+
+
 	// display transfers
 	for _, transfer := range split.DirectTransfers {
 		fmt.Fprintf(&sb, "%s %s %s %s\n",
