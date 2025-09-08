@@ -1,6 +1,6 @@
 # T-Hub
 
-A Terminal User Interface (TUI) application for calculating optimal loot splits in party hunts. T-Hub processes party hunt analyzer data and automatically calculates fair gold distribution among players, minimizing the number of required transfers.
+A Terminal User Interface (TUI) application designed for analyzing Party Hunt data from **Tibia**, the classic MMORPG.T-Hub processes party hunt analyzer data and automatically calculates fair gold distribution among players, minimizing the number of required transfers.
 
 ## Features
 
@@ -17,13 +17,14 @@ A Terminal User Interface (TUI) application for calculating optimal loot splits 
 
 - Go 1.24.1 or higher
 - Linux users may also need `xclip` for clipboard functionality:
+
   ```bash
   # Ubuntu/Debian
   sudo apt install xclip
-  
+
   # Arch Linux
   sudo pacman -S xclip
-  
+
   # Fedora/RHEL
   sudo dnf install xclip
   ```
@@ -98,6 +99,7 @@ t-hub/
 ### Algorithm
 
 The loot split calculation uses a greedy algorithm that:
+
 - Separates players into debtors (owe money) and creditors (receive money)
 - Sorts players by transfer amounts to optimize matching
 - Minimizes total number of transactions required
@@ -106,8 +108,8 @@ The loot split calculation uses a greedy algorithm that:
 ### Data Format
 
 T-Hub expects party hunt analyzer data in the standard format(direct from the game) containing:
+
 - Session information
 - Loot type and total values
 - Individual player statistics (loot, supplies, balance, damage, healing)
 - Player roles (leader identification)
-
